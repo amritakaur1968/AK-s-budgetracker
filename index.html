@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Budget Tracker</title>
+
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 30px;
+      background-color: #f5f5f5;
+    }
+
+    h1, h2 {
+      text-align: center;
+    }
+
+    form, table, #summary {
+      max-width: 600px;
+      margin: 20px auto;
+      background: #fff;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+
+    input, select, button {
+      width: 100%;
+      padding: 10px;
+      margin-top: 10px;
+      margin-bottom: 20px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+
+    th, td {
+      padding: 10px;
+      border: 1px solid #ccc;
+      text-align: center;
+    }
+
+    #status {
+      text-align: center;
+      font-weight: bold;
+    }
+
+    #summary p {
+      font-size: 18px;
+      padding: 5px 0;
+    }
+  </style>
+
+  <!-- Firebase Initialization -->
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyAyu_yWU20xoJ9eL3XIiqBrHRLLDdIpgpg",
+      authDomain: "ak-budget-tracker-799a1.firebaseapp.com",
+      projectId: "ak-budget-tracker-799a1",
+      storageBucket: "ak-budget-tracker-799a1.firebasestorage.app",
+      messagingSenderId: "26584539482",
+      appId: "1:26584539482:web:ab7eb7d5fba7ffc2a9d363",
+      measurementId: "G-K8X0F6GJPN"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+  </script>
+</head>
+<body>
+
+  <h1>Budget Tracker</h1>
+
+  <!-- Transaction Form -->
+  <form id="transaction-form">
+    <input type="text" id="desc" placeholder="Description" required>
+    <input type="number" id="amount" placeholder="Amount" required>
+    <select id="type">
+      <option value="income">Income</option>
+      <option value="expense">Expense</option>
+    </select>
+    <input type="date" id="date" required>
+    <button type="submit">Add Transaction</button>
+  </form>
+
+  <p id="status"></p>
+
+  <!-- Transaction Table -->
+  <h2>Transaction History</h2>
+  <table id="transaction-table">
+    <thead>
+      <tr>
+        <th>Description</th>
+        <th>Amount</th>
+        <th>Type</th>
+        <th>Date</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody id="transaction-list"></tbody>
+  </table>
+
+  <!-- Summary Section -->
+  <h2>Summary</h2>
+  <div id="summary">
+    <p><strong>Total Income:</strong> ₹0</p>
+    <p><strong>Total Expense:</strong> ₹0</p>
+    <p><strong>Balance:</strong> ₹0</p>
+  </div>
+
+  <!-- Main Script -->
+  <script>
+    const form = document.getElementById('transaction-form');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const desc = document.getElementById('desc').value;
+      const amount = parseFloat(document.getElementById('amount').value);
+      const type = document.getElementById('type').value;
+      const date = document.getElementById('date').value;
+      const status = document.getElementById('status');
+
+      try {
+        await db.collection("transactions").add({ desc, amount, type, date });
+        status.textContent = "Transaction added successfully!";
+        status.style.color = "green";
+        form.reset();
+      } catch (error) {
+        status.textContent = `Error: ${error.message}`;
+        status.style.color = "red";
+      }
+    });
+
+    // Fetch and display transactions
+    function loadTransactions() {
+      const list = document.getElementById('transaction-list');
+      list.innerHTML = "";
+
+      db.collection("transactions").orderBy("date", "desc").onSnapshot((snapshot) => {
+        list.innerHTML = "";
+        let income = 0, expense = 0;
+
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          const row = document.createElement('tr');
+
+          row.innerHTML = `
+            <td>${data.desc}</td>
+            <td>${data.amount}</td>
+            <td>${data.type}</td>
+            <td>${data.date}</td>
+            <td><button onclick="deleteTransaction('${doc.id}')">Delete</button></td>
+          `;
+
+          list.appendChild(row);
+
+          if (data.type === 'income') income += data.amount;
+          else if (data.type === 'expense') expense += data.amount;
+        });
+
+        updateSummary(income, expense);
+      });
+    }
+
+    // Delete a transaction
+    function deleteTransaction(id) {
+      db.collection("transactions").doc(id).delete()
+        .then(() => console.log("Deleted"))
+        .catch((err) => console.error("Delete error:", err));
+    }
+
+    // Update totals
+    function updateSummary(income, expense) {
+      const balance = income - expense;
+      document.getElementById("summary").innerHTML = `
+        <p><strong>Total Income:</strong> ₹${income}</p>
+        <p><strong>Total Expense:</strong> ₹${expense}</p>
+        <p><strong>Balance:</strong> ₹${balance}</p>
+      `;
+    }
+
+    // Load transactions on startup
+    loadTransactions();
+  </script>
+
+</body>
+</html>
